@@ -1,9 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, Paperclip, Smile, MoreVertical } from 'lucide-react';
 
 const defaultRoutines = [
-  { id: 'welcome', name: 'Boas-vindas Automáticas', text: 'Olá, bem-vindo(a) à nossa loja! Como posso te ajudar hoje?' },
+  { id: 'welcome', name: 'Boas-vindas Automáticas', text: 'Olá! Bem-vindo(a) à nossa loja! Como posso te ajudar hoje?' },
   { id: 'info', name: 'Coleta de Informações', text: 'Por favor, informe seu nome completo para prosseguirmos.' },
-  // ... (outros rotinas)
+  { id: 'menu', name: 'Menu de Opções', text: 'Como posso te ajudar?\n1️⃣ Informações sobre produtos\n2️⃣ Status do pedido\n3️⃣ Suporte técnico\n4️⃣ Falar com um atendente' },
+  { id: 'autoResolve', name: 'Resolução Automática', text: 'Entendi sua solicitação. Estou processando as informações para resolver seu problema automaticamente.' },
+  { id: 'human', name: 'Encaminhamento para Atendente', text: 'Entendo que você precisa de ajuda especializada. Vou te transferir para um de nossos atendentes humanos. Por favor, aguarde um momento.' },
+  { id: 'schedule', name: 'Agendamento', text: 'Vamos agendar um horário para você. Por favor, escolha uma das opções disponíveis:\n1️⃣ Segunda-feira, 14h\n2️⃣ Terça-feira, 10h\n3️⃣ Quarta-feira, 16h' },
+  { id: 'followUp', name: 'Follow-up', text: 'Olá! Espero que esteja tudo bem. Gostaria de saber se você está satisfeito com nosso atendimento e se há algo mais em que possamos ajudar.' },
+  { id: 'feedback', name: 'Pesquisa de Satisfação', text: 'Sua opinião é muito importante para nós. Como você avalia nosso atendimento?\n⭐⭐⭐⭐⭐ Excelente\n⭐⭐⭐⭐ Muito Bom\n⭐⭐⭐ Bom\n⭐⭐ Regular\n⭐ Ruim' },
+  { id: 'offHours', name: 'Fora do Horário', text: 'Olá! Nosso horário de atendimento é de segunda a sexta, das 9h às 18h. Por favor, deixe sua mensagem e retornaremos assim que possível.' },
+  { id: 'reminder', name: 'Lembrete', text: 'Olá! Este é um lembrete amigável sobre seu compromisso agendado para amanhã às 10h. Confirmamos sua presença?' },
 ];
 
 const WhatsAppChatbot = () => {
@@ -12,6 +20,12 @@ const WhatsAppChatbot = () => {
   const [routineTexts, setRoutineTexts] = useState({});
   const [chatHistory, setChatHistory] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [storeInfo, setStoreInfo] = useState({});
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory]);
 
   const handleRoutineToggle = (id) => {
     setSelectedRoutines(prev => ({
@@ -28,9 +42,9 @@ const WhatsAppChatbot = () => {
   };
 
   const handleCreateBot = () => {
-    setStep('test');
+    setStep('collect');
     setChatHistory([
-      { sender: 'bot', message: routineTexts.welcome || defaultRoutines.find(r => r.id === 'welcome').text }
+      { sender: 'bot', message: 'Olá! Vamos configurar o chatbot para sua loja. Qual é o nome da sua loja?' }
     ]);
   };
 
@@ -41,28 +55,42 @@ const WhatsAppChatbot = () => {
     setInputMessage('');
     
     setTimeout(() => {
-      let botResponse = getBotResponse(inputMessage.toLowerCase());
+      let botResponse = getBotResponse(inputMessage);
       setChatHistory(prev => [...prev, { sender: 'bot', message: botResponse }]);
     }, 1000);
   };
 
   const getBotResponse = (input) => {
+    if (step === 'collect') {
+      if (!storeInfo.name) {
+        setStoreInfo(prev => ({ ...prev, name: input }));
+        return "Ótimo! Qual é o ramo de atuação da sua loja?";
+      } else if (!storeInfo.business) {
+        setStoreInfo(prev => ({ ...prev, business: input }));
+        return "Perfeito! Agora, me diga qual é o horário de funcionamento da sua loja?";
+      } else if (!storeInfo.hours) {
+        setStoreInfo(prev => ({ ...prev, hours: input }));
+        setStep('test');
+        return `Obrigado! Agora vou configurar o chatbot para a ${storeInfo.name}. Você pode começar a testar enviando uma mensagem como se fosse um cliente.`;
+      }
+    }
+
     // Simplified logic for demonstration
-    if (input.includes('produto')) {
+    if (input.toLowerCase().includes('produto')) {
       return routineTexts.menu || defaultRoutines.find(r => r.id === 'menu').text;
-    } else if (input.includes('pedido')) {
+    } else if (input.toLowerCase().includes('pedido')) {
       return routineTexts.autoResolve || defaultRoutines.find(r => r.id === 'autoResolve').text;
-    } else if (input.includes('ajuda')) {
+    } else if (input.toLowerCase().includes('ajuda')) {
       return routineTexts.human || defaultRoutines.find(r => r.id === 'human').text;
     } else {
-      return "Desculpe, não entendi. Pode reformular sua pergunta?";
+      return routineTexts.welcome || defaultRoutines.find(r => r.id === 'welcome').text;
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-md mx-auto bg-gray-200 h-screen flex flex-col">
       {step === 'configure' && (
-        <div>
+        <div className="p-4 overflow-y-auto flex-grow">
           <h1 className="text-2xl font-bold mb-4">Configurador de Chatbot WhatsApp</h1>
           <h2 className="text-xl mb-2">Selecione as rotinas de atendimento:</h2>
           {defaultRoutines.map((routine) => (
@@ -87,7 +115,7 @@ const WhatsAppChatbot = () => {
             </div>
           ))}
           <button
-            className="bg-blue-500 text-white px-4 py-2 rounded"
+            className="bg-green-500 text-white px-4 py-2 rounded w-full"
             onClick={handleCreateBot}
           >
             Criar Bot
@@ -95,32 +123,36 @@ const WhatsAppChatbot = () => {
         </div>
       )}
 
-      {step === 'test' && (
-        <div>
-          <div className="h-64 overflow-y-auto border p-2 mb-4">
+      {(step === 'collect' || step === 'test') && (
+        <>
+          <div className="bg-green-500 p-4 text-white flex justify-between items-center">
+            <div className="font-bold">{storeInfo.name || "WhatsApp Chatbot"}</div>
+            <MoreVertical size={24} />
+          </div>
+          <div className="flex-grow overflow-y-auto p-4 bg-[url('/api/placeholder/400/800')] bg-cover">
             {chatHistory.map((msg, index) => (
-              <div key={index} className={`mb-2 ${msg.sender === 'bot' ? 'text-blue-600' : 'text-green-600'}`}>
-                <strong>{msg.sender === 'bot' ? 'Bot: ' : 'Você: '}</strong>{msg.message}
+              <div key={index} className={`mb-4 flex ${msg.sender === 'bot' ? 'justify-start' : 'justify-end'}`}>
+                <div className={`rounded-lg p-2 max-w-[70%] ${msg.sender === 'bot' ? 'bg-white' : 'bg-green-100'}`}>
+                  {msg.message}
+                </div>
               </div>
             ))}
+            <div ref={chatEndRef} />
           </div>
-          <div className="flex">
+          <div className="bg-gray-100 p-4 flex items-center">
+            <Smile size={24} className="text-gray-500 mr-2" />
+            <Paperclip size={24} className="text-gray-500 mr-2" />
             <input
               type="text"
-              className="flex-grow p-2 border rounded-l"
+              className="flex-grow p-2 rounded-full"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleUserInput()}
-              placeholder="Digite sua mensagem..."
+              placeholder="Digite uma mensagem"
             />
-            <button
-              className="bg-blue-500 text-white px-4 py-2 rounded-r"
-              onClick={handleUserInput}
-            >
-              Enviar
-            </button>
+            <Send size={24} className="text-gray-500 ml-2 cursor-pointer" onClick={handleUserInput} />
           </div>
-        </div>
+        </>
       )}
     </div>
   );
